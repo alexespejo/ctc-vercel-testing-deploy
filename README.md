@@ -33,7 +33,7 @@ yarn dev
 
 - **Vercel project**: e.g. `ctc-vercel-client`
 - **Root directory**: `.` (repo root)
-- **Build command**: `cd client && yarn install && yarn build`
+- **Build command**: `yarn install && yarn workspace client build`
 - **Output directory**: `client/dist`
 - **Environment variable**: `VITE_API_URL` = `https://<your-server-url>.vercel.app/api`
 - Redeploy after setting env vars so the client gets the correct API URL at build time.

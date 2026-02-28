@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd client && yarn install && yarn build",
+  "buildCommand": "yarn install && yarn workspace client build",
   "outputDirectory": "client/dist",
   "installCommand": "yarn install",
   "framework": null

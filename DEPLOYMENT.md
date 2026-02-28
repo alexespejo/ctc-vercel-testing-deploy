@@ -69,7 +69,7 @@ The client must know the server URL at **build time** (Vite inlines `import.meta
 1. **Add New** → **Project** and import the **same repo** again (or use a different branch).
 2. **Root Directory**: leave as **.** (repo root), not `client`.
 3. **Build & Development**:
-   - **Build Command**: `cd client && yarn install && yarn build`
+   - **Build Command**: `yarn install && yarn workspace client build`
    - **Output Directory**: `client/dist`
    - **Install Command**: `yarn install`
 4. **Environment Variables** (required for production):
@@ -114,11 +114,14 @@ Open the client URL (e.g. `https://ctc-vercel-client-xxx.vercel.app`). You shoul
 | Project | Root Directory | Build Command | Output Directory | Env |
 |--------|----------------|---------------|------------------|-----|
 | **Server** | `server` | (none) | — | Optional: `DATABASE_URL` |
-| **Client** | `.` (repo root) | `cd client && yarn install && yarn build` | `client/dist` | `VITE_API_URL` = server API URL |
+| **Client** | `.` (repo root) | `yarn install && yarn workspace client build` | `client/dist` | `VITE_API_URL` = server API URL |
 
 ---
 
 ## Troubleshooting
+
+- **Build fails: `cd client && yarn install && yarn build` exited with 1**  
+  Use the workspace-aware build command instead: `yarn install && yarn workspace client build`. This runs install from the repo root (so all workspaces are linked) then builds the client. Ensure **Root Directory** is `.` (repo root), not `client`.
 
 - **Client shows "Error" or wrong API URL**  
   - Ensure `VITE_API_URL` is set in the **client** Vercel project and that it ends with `/api` (no trailing slash).  
