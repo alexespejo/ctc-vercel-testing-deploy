@@ -1,6 +1,6 @@
 {
-  "buildCommand": "yarn install && yarn workspace client build",
-  "outputDirectory": "client/dist",
-  "installCommand": "yarn install",
-  "framework": null
+ "buildCommand": "yarn install && yarn workspace client build",
+ "outputDirectory": "client/dist",
+ "installCommand": "yarn install",
+ "framework": null
 }
