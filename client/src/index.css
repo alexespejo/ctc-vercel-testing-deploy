@@ -1,0 +1,11 @@
+.container {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 1rem;
+  font-family: system-ui, sans-serif;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
