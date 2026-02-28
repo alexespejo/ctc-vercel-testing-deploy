@@ -64,10 +64,25 @@ Copy the production URL (e.g. `https://ctc-vercel-server-xxx.vercel.app`). Your 
 
 The client must know the server URL at **build time** (Vite inlines `import.meta.env.VITE_API_URL`).
 
-### Option A: Deploy via Vercel Dashboard
+Choose **one** of these setups:
 
-1. **Add New** → **Project** and import the **same repo** again (or use a different branch).
-2. **Root Directory**: leave as **.** (repo root), not `client`.
+### Option A: Client as root (recommended – uses `client/vercel.json`)
+
+1. **Add New** → **Project** and import the **same repo**.
+2. **Root Directory**: set to **`client`**.
+3. **Build & Development**: leave defaults (or override if needed):
+   - **Build Command**: `yarn install && yarn build`
+   - **Output Directory**: `dist`
+   - **Install Command**: `yarn install`
+4. **Environment Variables** (required for production):
+   - Name: `VITE_API_URL`  
+   - Value: `https://<your-server-url>.vercel.app/api`
+5. **Deploy**.
+
+### Option B: Repo root (uses root `vercel.json`)
+
+1. **Add New** → **Project** and import the **same repo**.
+2. **Root Directory**: leave as **.** (repo root).
 3. **Build & Development**:
    - **Build Command**: `yarn install && yarn workspace client build`
    - **Output Directory**: `client/dist`
@@ -78,7 +93,7 @@ The client must know the server URL at **build time** (Vite inlines `import.meta
    (Use the URL from Step 1, e.g. `https://ctc-vercel-server-xxx.vercel.app/api`.)
 5. **Deploy**.
 
-### Option B: Deploy via Vercel CLI (from repo root)
+### Option C: Deploy via Vercel CLI (from repo root)
 
 ```bash
 cd /path/to/ctc-vercel-testing-deployment
@@ -114,14 +129,18 @@ Open the client URL (e.g. `https://ctc-vercel-client-xxx.vercel.app`). You shoul
 | Project | Root Directory | Build Command | Output Directory | Env |
 |--------|----------------|---------------|------------------|-----|
 | **Server** | `server` | (none) | — | Optional: `DATABASE_URL` |
+| **Client** | `client` (recommended) | `yarn install && yarn build` | `dist` | `VITE_API_URL` = server API URL |
 | **Client** | `.` (repo root) | `yarn install && yarn workspace client build` | `client/dist` | `VITE_API_URL` = server API URL |
 
 ---
 
 ## Troubleshooting
 
+- **No Output Directory named "dist" found**  
+  You have **Root Directory** set to `client`. Then the output directory must be **`dist`** (not `client/dist`). In **Project Settings** → **General** → **Output Directory**, set to `dist`. The repo’s `client/vercel.json` already sets this. Redeploy after fixing.
+
 - **Build fails: `cd client && yarn install && yarn build` exited with 1**  
-  Use the workspace-aware build command instead: `yarn install && yarn workspace client build`. This runs install from the repo root (so all workspaces are linked) then builds the client. Ensure **Root Directory** is `.` (repo root), not `client`.
+  Use the workspace-aware build command: `yarn install && yarn workspace client build` only when **Root Directory** is `.` (repo root). If Root Directory is `client`, use `yarn install && yarn build` and Output Directory `dist`.
 
 - **Client shows "Error" or wrong API URL**  
   - Ensure `VITE_API_URL` is set in the **client** Vercel project and that it ends with `/api` (no trailing slash).  
