@@ -56,7 +56,6 @@ jobs:
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SERVER_PROJECT_ID }}
         run: |
-          vercel pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
           SERVER_URL=$(vercel deploy --token="${{ secrets.VERCEL_TOKEN }}" --yes 2>&1 | grep -E '^https://' | tail -1)
           echo "url=$SERVER_URL" >> "$GITHUB_OUTPUT"
 
@@ -72,18 +71,21 @@ jobs:
             echo "note=Production (no server changes in this PR)" >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 4. Build and deploy client preview with the resolved API URL ───────
+      # ── 4. Deploy client preview with the resolved API URL ────────────────
+      # Uses `vercel deploy --build-env` so the build runs on Vercel's infra
+      # (avoids "spawn sh ENOENT" that occurs with local `vercel build`).
+      # VITE_API_URL is passed as a build-time env var; get-server-url.sh echoes
+      # it back unchanged (priority-1 branch), so the baked URL is correct.
       - name: Deploy client preview
         id: client-deploy
         working-directory: ./client
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
-          VITE_API_URL: ${{ steps.api-url.outputs.url }}
         run: |
-          vercel pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
-          # VITE_API_URL is exported above; get-server-url.sh will echo it back unchanged.
-          vercel build --token="${{ secrets.VERCEL_TOKEN }}"
-          CLIENT_URL=$(vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}" 2>&1 | grep -E '^https://' | tail -1)
+          CLIENT_URL=$(vercel deploy \
+            --token="${{ secrets.VERCEL_TOKEN }}" \
+            --build-env VITE_API_URL="${{ steps.api-url.outputs.url }}" \
+            --yes 2>&1 | grep -E '^https://' | tail -1)
           echo "url=$CLIENT_URL" >> "$GITHUB_OUTPUT"
 
       # ── 5. Post preview URLs as a PR comment ───────────────────────────────
