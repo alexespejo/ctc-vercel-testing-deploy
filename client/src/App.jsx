@@ -6,9 +6,7 @@ function App() {
  const [error, setError] = useState(null);
 
  useEffect(() => {
-  const apiUrl = import.meta.env.VITE_API_URL || "/api";
-  console.log(apiUrl);
-  fetch(`${apiUrl}/hello`)
+  fetch("https://ctc-vercel-testing-deploy-server.vercel.app/")
    .then((res) => res.json())
    .then((data) => {
     setMessage(data.message || "No message");
