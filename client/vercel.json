@@ -1,5 +1,5 @@
 {
-  "buildCommand": "VITE_API_URL=$(sh scripts/get-server-url.sh) yarn build",
+  "buildCommand": "yarn build",
   "outputDirectory": "dist",
   "installCommand": "yarn install",
   "framework": "vite"

@@ -56,7 +56,7 @@ jobs:
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SERVER_PROJECT_ID }}
         run: |
-          SERVER_URL=$(vercel deploy --token="${{ secrets.VERCEL_TOKEN }}" --yes 2>&1 | grep -oE 'https://[^ ]+\.vercel\.app[^ ]*' | tail -1)
+          SERVER_URL=$(vercel deploy --token="${{ secrets.VERCEL_TOKEN }}" --yes)
           echo "url=$SERVER_URL" >> "$GITHUB_OUTPUT"
 
       # ── 3. Resolve the API URL the client preview should use ───────────────
@@ -71,21 +71,32 @@ jobs:
             echo "note=Production (no server changes in this PR)" >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 4. Deploy client preview with the resolved API URL ────────────────
-      # Uses `vercel deploy --build-env` so the build runs on Vercel's infra
-      # (avoids "spawn sh ENOENT" that occurs with local `vercel build`).
-      # VITE_API_URL is passed as a build-time env var; get-server-url.sh echoes
-      # it back unchanged (priority-1 branch), so the baked URL is correct.
+      # ── 4. Build client locally then deploy the pre-built output ─────────
+      # Building locally gives us full control over VITE_API_URL without
+      # relying on vercel deploy --build-env (which doesn't reliably expose
+      # the value to the buildCommand shell script).
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build client
+        run: VITE_API_URL="${{ steps.api-url.outputs.url }}" yarn workspace client build
+
+      - name: Package client for Vercel
+        run: |
+          mkdir -p client/.vercel/output/static
+          cp -r client/dist/* client/.vercel/output/static/
+          # SPA routing: serve index.html for all paths
+          cat > client/.vercel/output/config.json << 'EOF'
+          {"version":3,"routes":[{"handle":"filesystem"},{"src":"/(.*)","dest":"/index.html"}]}
+          EOF
+
       - name: Deploy client preview
         id: client-deploy
         working-directory: ./client
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
         run: |
-          CLIENT_URL=$(vercel deploy \
-            --token="${{ secrets.VERCEL_TOKEN }}" \
-            --build-env VITE_API_URL="${{ steps.api-url.outputs.url }}" \
-            --yes 2>&1 | grep -oE 'https://[^ ]+\.vercel\.app[^ ]*' | tail -1)
+          CLIENT_URL=$(vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}" --yes)
           echo "url=$CLIENT_URL" >> "$GITHUB_OUTPUT"
 
       # ── 5. Post preview URLs as a PR comment ───────────────────────────────
