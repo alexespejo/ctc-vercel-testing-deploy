@@ -1,0 +1,115 @@
+name: Preview Deploy
+
+# Handles preview deployments for pull requests with smart server URL routing:
+#   - PR with server changes  → deploy server preview first, client preview points to it
+#   - PR with client changes only → client preview points to the production server
+#
+# Requires GitHub secrets:
+#   VERCEL_TOKEN            - Vercel personal access token
+#   VERCEL_ORG_ID           - Vercel team/org ID (from .vercel/project.json or dashboard)
+#   VERCEL_CLIENT_PROJECT_ID - Vercel project ID for the client project
+#   VERCEL_SERVER_PROJECT_ID - Vercel project ID for the server project
+#
+# Vercel project settings (set in each project's dashboard):
+#   Ignored Build Step: [ "$VERCEL_ENV" != "production" ]
+#   This skips automatic Vercel preview builds so this workflow has full control.
+#   Production pushes to main still deploy automatically.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 1. Detect which parts of the repo changed ──────────────────────────
+      - name: Detect changed paths
+        id: changes
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          if git diff --name-only "$BASE" "$HEAD" | grep -q '^server/'; then
+            echo "server=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "server=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      # ── 2. Deploy server preview (only when server files changed) ──────────
+      - name: Deploy server preview
+        id: server-deploy
+        if: steps.changes.outputs.server == 'true'
+        working-directory: ./server
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SERVER_PROJECT_ID }}
+        run: |
+          vercel pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
+          SERVER_URL=$(vercel deploy --token="${{ secrets.VERCEL_TOKEN }}" --yes 2>&1 | grep -E '^https://' | tail -1)
+          echo "url=$SERVER_URL" >> "$GITHUB_OUTPUT"
+
+      # ── 3. Resolve the API URL the client preview should use ───────────────
+      - name: Resolve API URL
+        id: api-url
+        run: |
+          if [ "${{ steps.changes.outputs.server }}" = "true" ] && [ -n "${{ steps.server-deploy.outputs.url }}" ]; then
+            echo "url=${{ steps.server-deploy.outputs.url }}" >> "$GITHUB_OUTPUT"
+            echo "note=Preview" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=https://ctc-vercel-testing-deploy-server.vercel.app" >> "$GITHUB_OUTPUT"
+            echo "note=Production (no server changes in this PR)" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 4. Build and deploy client preview with the resolved API URL ───────
+      - name: Deploy client preview
+        id: client-deploy
+        working-directory: ./client
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
+          VITE_API_URL: ${{ steps.api-url.outputs.url }}
+        run: |
+          vercel pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
+          # VITE_API_URL is exported above; get-server-url.sh will echo it back unchanged.
+          vercel build --token="${{ secrets.VERCEL_TOKEN }}"
+          CLIENT_URL=$(vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}" 2>&1 | grep -E '^https://' | tail -1)
+          echo "url=$CLIENT_URL" >> "$GITHUB_OUTPUT"
+
+      # ── 5. Post preview URLs as a PR comment ───────────────────────────────
+      - name: Comment preview URLs on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const serverChanged = '${{ steps.changes.outputs.server }}' === 'true';
+            const serverUrl = serverChanged
+              ? '${{ steps.server-deploy.outputs.url }}'
+              : 'https://ctc-vercel-testing-deploy-server.vercel.app';
+            const serverNote = '${{ steps.api-url.outputs.note }}';
+            const clientUrl = '${{ steps.client-deploy.outputs.url }}';
+
+            const body = [
+              '## Preview Deployments',
+              '',
+              '| Project | URL | Environment |',
+              '|---------|-----|-------------|',
+              `| **Client** | ${clientUrl} | Preview |`,
+              `| **Server** | ${serverUrl} | ${serverNote} |`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
