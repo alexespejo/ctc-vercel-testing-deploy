@@ -26,6 +26,7 @@ function App() {
   <div className="container">
    <h1>CTC Vercel Deployment Test</h1>
    <p data-testid="server-message">{message}</p>
+   <p>Hello from the client CTC test!</p>
   </div>
  );
 }

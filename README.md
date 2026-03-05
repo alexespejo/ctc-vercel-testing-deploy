@@ -1,4 +1,4 @@
-# CTC Vercel Full-Stack Test
+# CTC Vercel Full-Stack Test - 2nd branch
 
 Full-stack React (Vite) + Express app for testing **separate** Vercel deployments of client and server.
 
