@@ -6,7 +6,8 @@ function App() {
  const [error, setError] = useState(null);
 
  useEffect(() => {
-  fetch("https://ctc-vercel-testing-deploy-server.vercel.app/")
+  const serverUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  fetch(serverUrl)
    .then((res) => res.json())
    .then((data) => {
     setMessage(data.message || "No message");
