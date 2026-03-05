@@ -100,6 +100,18 @@ For the **client project**, set under **Settings → Environment Variables**:
 
 Preview `VITE_API_URL` is set dynamically by GitHub Actions (or the build script fallback), so it does **not** need to be configured in the dashboard.
 
+### 4. Root Directory (Client Project)
+
+In the **client project's** Vercel dashboard → **Settings → General → Root Directory**, set it to `client`.
+
+This tells Vercel the project lives in the `client/` subdirectory of the repo. The GitHub Actions workflow accounts for this by placing the prebuilt output at the repo root `.vercel/output/` and running `vercel deploy --prebuilt` from the repo root — Vercel then applies the `client` root directory setting correctly. Do **not** run `vercel deploy` from inside the `client/` directory, as that causes the path to be doubled (`client/client`).
+
+### 5. Deployment Protection (Server Project)
+
+In the **server project's** Vercel dashboard → **Settings → Deployment Protection**, disable protection for preview deployments (or turn it off entirely).
+
+By default, Vercel protects preview deployments with Vercel Authentication, requiring visitors to be logged in to Vercel. Since the server is an API, this causes the browser client to receive a `401 Unauthorized` before any request reaches Express. Disabling it allows the client preview to call the server preview freely.
+
 ---
 
 ## CORS
@@ -109,6 +121,8 @@ Preview `VITE_API_URL` is set dynamically by GitHub Actions (or the build script
 - `http://localhost:5173` and `http://localhost:3000` (local dev)
 - `https://ctc-vercel-testing-deploy-client.vercel.app` (production client)
 - Any URL matching `^https://ctc-vercel-testing-deploy-client(-[a-z0-9-]+)?\.vercel\.app$` (preview deployments)
+
+**Important:** The CORS regex must be present on the `main` branch so it is active on the production server. When a PR only touches client files, the client preview points to the production server — if the regex is only on a feature branch, production will reject requests from preview client URLs.
 
 No changes needed in the server when adding new preview branches.
 
