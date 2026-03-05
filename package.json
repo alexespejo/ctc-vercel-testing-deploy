@@ -1,7 +1,10 @@
 {
   "name": "ctc-vercel-fullstack",
   "private": true,
-  "workspaces": ["client", "server"],
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -13,6 +16,7 @@
     "start:server": "yarn workspace server start"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "vercel": "^50.26.0"
   }
 }
