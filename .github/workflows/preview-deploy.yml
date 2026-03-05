@@ -55,7 +55,7 @@ jobs:
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SERVER_PROJECT_ID }}
         run: |
-          SERVER_URL=$(vercel deploy --token="${{ secrets.VERCEL_TOKEN }}" --yes)
+          SERVER_URL=$(vercel deploy --token="${{ secrets.VERCEL_TOKEN }}" --yes | tail -1)
           echo "url=$SERVER_URL" >> "$GITHUB_OUTPUT"
 
       # ── 3. Resolve the API URL the client preview should use ───────────────
@@ -95,7 +95,7 @@ jobs:
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
         run: |
-          CLIENT_URL=$(vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}" --yes)
+          CLIENT_URL=$(vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}" --yes | tail -1)
           echo "url=$CLIENT_URL" >> "$GITHUB_OUTPUT"
 
       # ── 5. Post preview URLs as a PR comment ───────────────────────────────
