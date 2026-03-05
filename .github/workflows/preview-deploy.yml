@@ -83,16 +83,15 @@ jobs:
 
       - name: Package client for Vercel
         run: |
-          mkdir -p client/.vercel/output/static
-          cp -r client/dist/* client/.vercel/output/static/
+          mkdir -p .vercel/output/static
+          cp -r client/dist/* .vercel/output/static/
           # SPA routing: serve index.html for all paths
-          cat > client/.vercel/output/config.json << 'EOF'
+          cat > .vercel/output/config.json << 'EOF'
           {"version":3,"routes":[{"handle":"filesystem"},{"src":"/(.*)","dest":"/index.html"}]}
           EOF
 
       - name: Deploy client preview
         id: client-deploy
-        working-directory: client
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
         run: |
