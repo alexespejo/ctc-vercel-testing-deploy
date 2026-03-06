@@ -49,7 +49,36 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # ── 2. Deploy server preview (only when server files changed) ──────────
+      # ── 2. Post pending comment ─────────────────────────────────────────────
+      - name: Post pending comment
+        id: pending-comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const serverChanged = '${{ steps.changes.outputs.server }}' === 'true';
+            const logsUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const branch = '${{ github.head_ref }}';
+
+            const body = [
+              '## Deploying Preview ⏳',
+              '',
+              '| Project | Status |',
+              '|---------|--------|',
+              '| 🖥️ **Client** | Deploying... |',
+              `| ⚙️ **Server** | ${serverChanged ? 'Deploying...' : 'Using production'} |`,
+              '',
+              `> Branch: \`${branch}\` · [View logs](${logsUrl})`,
+            ].join('\n');
+
+            const comment = await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+            core.setOutput('comment-id', comment.data.id);
+
+      # ── 3. Deploy server preview (only when server files changed) ──────────
       - name: Deploy server preview
         id: server-deploy
         if: steps.changes.outputs.server == 'true'
@@ -98,29 +127,48 @@ jobs:
           CLIENT_URL=$(vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}" --yes | tail -1)
           echo "url=$CLIENT_URL" >> "$GITHUB_OUTPUT"
 
-      # ── 5. Post preview URLs as a PR comment ───────────────────────────────
-      - name: Comment preview URLs on PR
+      # ── 5. Update comment with final preview URLs ──────────────────────────
+      - name: Update comment with preview URLs
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
+            const succeeded = '${{ job.status }}' === 'success';
             const serverChanged = '${{ steps.changes.outputs.server }}' === 'true';
+            const clientUrl = '${{ steps.client-deploy.outputs.url }}';
             const serverUrl = serverChanged
               ? '${{ steps.server-deploy.outputs.url }}'
               : 'https://ctc-vercel-testing-deploy-server.vercel.app';
-            const serverNote = '${{ steps.api-url.outputs.note }}';
-            const clientUrl = '${{ steps.client-deploy.outputs.url }}';
+            const logsUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const branch = '${{ github.head_ref }}';
 
-            const body = [
-              '## Preview Deployments',
-              '',
-              '| Project | URL | Environment |',
-              '|---------|-----|-------------|',
-              `| **Client** | ${clientUrl} | Preview |`,
-              `| **Server** | ${serverUrl} | ${serverNote} |`,
-            ].join('\n');
+            let body;
+            if (succeeded) {
+              body = [
+                '## Preview Ready ✅',
+                '',
+                '| Project | URL | Status |',
+                '|---------|-----|--------|',
+                `| 🖥️ **Client** | [Visit Preview](${clientUrl}) | ✅ Ready |`,
+                `| ⚙️ **Server** | [Visit Preview](${serverUrl}) | ${serverChanged ? '✅ Ready' : '⚡ Production'} |`,
+                '',
+                `> Branch: \`${branch}\` · [View logs](${logsUrl})`,
+              ].join('\n');
+            } else {
+              body = [
+                '## Deployment Failed ❌',
+                '',
+                '| Project | Status |',
+                '|---------|--------|',
+                `| 🖥️ **Client** | ${clientUrl ? `[Visit Preview](${clientUrl})` : '❌ Failed'} |`,
+                `| ⚙️ **Server** | ${serverChanged ? (serverUrl ? `[Visit Preview](${serverUrl})` : '❌ Failed') : '⚡ Production'} |`,
+                '',
+                `> Branch: \`${branch}\` · [View logs](${logsUrl})`,
+              ].join('\n');
+            }
 
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            await github.rest.issues.updateComment({
+              comment_id: ${{ steps.pending-comment.outputs.comment-id }},
               owner: context.repo.owner,
               repo: context.repo.repo,
               body,
