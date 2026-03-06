@@ -142,30 +142,25 @@ jobs:
             const logsUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             const branch = '${{ github.head_ref }}';
 
-            let body;
-            if (succeeded) {
-              body = [
-                '## Preview Ready ✅',
-                '',
-                '| Project | URL | Status |',
-                '|---------|-----|--------|',
-                `| 🖥️ **Client** | [Visit Preview](${clientUrl}) | ✅ Ready |`,
-                `| ⚙️ **Server** | [Visit Preview](${serverUrl}) | ${serverChanged ? '✅ Ready' : '⚡ Production'} |`,
-                '',
-                `> Branch: \`${branch}\` · [View logs](${logsUrl})`,
-              ].join('\n');
-            } else {
-              body = [
-                '## Deployment Failed ❌',
-                '',
-                '| Project | Status |',
-                '|---------|--------|',
-                `| 🖥️ **Client** | ${clientUrl ? `[Visit Preview](${clientUrl})` : '❌ Failed'} |`,
-                `| ⚙️ **Server** | ${serverChanged ? (serverUrl ? `[Visit Preview](${serverUrl})` : '❌ Failed') : '⚡ Production'} |`,
-                '',
-                `> Branch: \`${branch}\` · [View logs](${logsUrl})`,
-              ].join('\n');
+            if (!succeeded) {
+              await github.rest.issues.deleteComment({
+                comment_id: ${{ steps.pending-comment.outputs.comment-id }},
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              return;
             }
+
+            const body = [
+              '## Preview Ready ✅',
+              '',
+              '| Project | URL | Status |',
+              '|---------|-----|--------|',
+              `| 🖥️ **Client** | [Visit Preview](${clientUrl}) | ✅ Ready |`,
+              `| ⚙️ **Server** | [Visit Preview](${serverUrl}) | ${serverChanged ? '✅ Ready' : '⚡ Production'} |`,
+              '',
+              `> Branch: \`${branch}\` · [View logs](${logsUrl})`,
+            ].join('\n');
 
             await github.rest.issues.updateComment({
               comment_id: ${{ steps.pending-comment.outputs.comment-id }},
